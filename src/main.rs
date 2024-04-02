@@ -1,14 +1,14 @@
-use crate::csv_parser::CsvFile;
+use crate::{csv_parser::CsvFile, model::{calc_entropy, DesicionTree}, tree::Tree};
 
 mod csv_parser;
 mod traits;
 mod tree;
+mod model;
 
 fn main() {
     println!("Hello, world!");
-
+        
     let mushrooms_csv = CsvFile::new("mushrooms.csv");
-    let col = mushrooms_csv.read_column_by_name::<char>("class");
-
-    println!("{:?}", col.unwrap());
+    
+    let desicion_tree = DesicionTree::new(&mushrooms_csv);
 }

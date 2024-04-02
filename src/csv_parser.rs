@@ -1,4 +1,4 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 use itertools::Itertools;
 
 // TODO! reduce memory footprint later maybe?
@@ -46,8 +46,12 @@ impl CsvFile {
                 .filter(|(_i, ch)| *ch == ',')
                 .map(|(i, _ch)| i);
 
-            let idx_1 = idx_iter.nth(column_idx - 1).unwrap();
-            let idx_2 = idx_iter.nth(column_idx).unwrap();
+            let idx_1 = if column_idx == 0 {
+                0
+            } else {
+                idx_iter.nth(column_idx - 1).unwrap() + 1
+            };
+            let idx_2 = idx_iter.next().unwrap_or(first_line.len());
             let name = &first_line[idx_1..idx_2];
 
             let mut data = Vec::new();
@@ -57,8 +61,12 @@ impl CsvFile {
                 .filter(|(_i, ch)| *ch == ',')
                 .map(|(i, _ch)| i);
 
-                let idx_1 = idx_iter.nth(column_idx - 1).unwrap();
-                let idx_2 = idx_iter.nth(column_idx).unwrap();
+                let idx_1 = if column_idx == 0 {
+                    0
+                } else {
+                    idx_iter.nth(column_idx - 1).unwrap() + 1
+                };
+                let idx_2 = idx_iter.next().unwrap_or(line.len());
 
                 let val = T::from_bytes(&line[idx_1..idx_2].as_bytes());
 
@@ -81,11 +89,23 @@ impl CsvFile {
         let split_idx = self.data.find(name);
         split_idx.map(|byte_idx| {
             let col_idx = 
-            &self.data[0..byte_idx]
+            self.data[0..byte_idx]
                 .chars()
                 .filter(|ch| *ch == ',')
-                .count() + 1;
+                .count();
             self.read_column_by_idx(col_idx)
         })?
+    }
+
+    pub fn read_all_columns<T>(&self) -> Vec<Column<T>> 
+    where T: CsvParsable
+    {
+        (0..self.num_columns).into_iter()
+        .map(|idx| self.read_column_by_idx(idx).unwrap())
+        .collect()
+    }
+
+    pub fn read_row<T>(&self, row_idx: usize) -> Vec<T> {
+        todo!()
     }
 }
