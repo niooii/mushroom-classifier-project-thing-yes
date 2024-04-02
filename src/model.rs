@@ -1,4 +1,4 @@
-use std::{collections::HashSet, hash::Hash};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 use itertools::Itertools;
 
@@ -25,11 +25,11 @@ pub enum DesicionTreeNode {
         feature_idx: usize,
         threshold: f32,
         info_gain: f32,
-        left_node_idx: usize,
-        right_node_idx: usize
+        left_idx: usize,
+        right_idx: usize
     },
     Leaf {
-        value: usize
+        class: usize
     }
 }
 
@@ -49,13 +49,64 @@ impl DesicionTree {
             let unique_label_counts = column.data.iter()
                 .sorted()
                 .dedup_with_count()
+                .map(|(i, val)| (*val, i))
                 // .map(|(count, _val)| count)
-                .collect::<Vec<_>>();
+                .collect::<HashMap<char, usize>>();
 
-            println!("------ COLUMN {} ------", column.name);
+            // what are we splitting lol 
+            if unique_label_counts.len() == 1 {
+                continue;
+            }
+
+            let unique_label_count_byte_vals = unique_label_counts.iter()
+                .map(|(val, i)| (*val as u8, *i))
+                .collect::<HashMap<_, _>>();
+
+            let byte_iter = column.data.iter()
+            .sorted()
+            .map(|ch| {
+                *ch as u8
+            });
+
+            println!("------ FEATURE {} ------", column.name);
             println!("entropy: {}", entropy);
             println!("number of unique labels: {}", unique_label_counts.len());
-            println!("distribution of unique labels: {:?}", unique_label_counts);
+            println!("distribution of unique labels: {:?}", unique_label_count_byte_vals);
+
+            // loop through bytes as u8 to find the highest information gain
+            let max_info_gain = unique_label_count_byte_vals.iter().clone()
+                .map(|(byte, _)| *byte).sorted()
+                .skip(1)
+                .map(|byte| {
+                    let side_1 = byte_iter.clone().filter(|e| *e < byte);
+                    let side_2 = byte_iter.clone().filter(|e| *e >= byte);
+                   
+                    let w_1 = side_1.clone()
+                    .sorted()
+                    .dedup()
+                    .map(|b| unique_label_count_byte_vals[&b] as f32).sum::<f32>() / column.data.len() as f32;
+                    let w_entropy_1 = calc_entropy(&side_1.collect()) * w_1;
+
+                    let w_2 = side_2.clone()
+                    .sorted()
+                    .dedup()
+                    .map(|b| unique_label_count_byte_vals[&b] as f32).sum::<f32>() / column.data.len() as f32;
+                    let w_entropy_2 = calc_entropy(&side_2.collect()) * w_2;
+
+                    // println!("splitting by idx {}", byte);
+                    // println!("weight: {}:{}", w_1, w_2);
+                    // println!("weighted entropy: {}", w_entropy_1);
+                    // println!();
+
+                    (entropy - w_entropy_1 - w_entropy_2, byte)
+                }
+            ).max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+
+            let best_info_gain = max_info_gain.0;
+            let best_point_of_split = max_info_gain.1;
+            println!("best point of split: {best_point_of_split}");
+            println!("max information gain: {best_info_gain}");
             println!();
         }
 
